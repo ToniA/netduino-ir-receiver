@@ -3,36 +3,50 @@ using Microsoft.SPOT;
 using Microsoft.SPOT.Hardware;
 using System.Threading;
 
-namespace IRdecoder
+namespace IRDecoder
 {
-    // event handler delegate
-    public delegate void CodeReceivedEventHandler(String data);
-
-    // Fully static, no need to instantiate the class
-
     class IRDecoder
     {
-        // IR input pin
-        public static InterruptPort RemoteInputPin;
+        // Constructor for the IRDecoder class
+        public IRDecoder(Cpu.Pin portId, CodeReceivedEventHandler eventHandler)
+        {
+            // Declare an interrupt port to act on both edges of the input
+            this.IRInputPin = new InterruptPort(portId, false, Port.ResistorMode.Disabled, Port.InterruptMode.InterruptEdgeBoth);
 
+            // Declare the interrupt event handler
+            this.IRInputPin.OnInterrupt += new NativeEventHandler(RecordPulse);
+
+            // Event handler which fires when a code is received
+            this.CodeReceivedHandler += new CodeReceivedEventHandler(eventHandler);
+
+            // Code timeout handler
+            this.RCtimeoutTimer = new Timer(new TimerCallback(RCtimeout), null, Timeout.Infinite, Timeout.Infinite);
+        }
+
+        // IR input pin
+        private InterruptPort IRInputPin;
+
+        // event handler delegate
+        public delegate void CodeReceivedEventHandler(String data);
+        
         // Event handler to call when a code is received
-        public static event CodeReceivedEventHandler CodeReceivedHandler;
+        private event CodeReceivedEventHandler CodeReceivedHandler;
 
         // IR receiver timeout - code is consider received when no state changes in 20 milliseconds
         private const int rc_timeout = 20;
-        private static Timer RCtimeoutTimer = new Timer(new TimerCallback(RCtimeout), null, Timeout.Infinite, Timeout.Infinite);
+        private Timer RCtimeoutTimer;
 
         // Raw IR data
 
-        private static int position = 0; // Current position in IRDataItems
+        private int position = 0; // Current position in IRDataItems
 
-        public struct IRDataItem
+        private struct IRDataItem
         {
             public Boolean state;
             public long timestamp;
         }
 
-        private static IRDataItem[] IRDataItems = new IRDataItem[512];
+        private IRDataItem[] IRDataItems = new IRDataItem[512];
 
 
         // Panasonic E12-CKP protocol
@@ -58,7 +72,7 @@ namespace IRdecoder
 
         // Pulse recorder, record the pulse timestamp and state
         // and reset the timeout timer
-        public static void RecordPulse(uint data1, uint data2, DateTime time)
+        private void RecordPulse(uint data1, uint data2, DateTime time)
         {
             // Record the timestamp and state
             IRDataItems[position].timestamp = time.Ticks / 10;
@@ -78,17 +92,17 @@ namespace IRdecoder
         }
 
         // Timeout fired -> no data in 20 ms -> process the IRDataItems
-        static void RCtimeout(object o)
+        private void RCtimeout(object o)
         {
             // Record the final state
             IRDataItems[position].timestamp = DateTime.Now.Ticks / 10;
-            IRDataItems[position].state = RemoteInputPin.Read();
+            IRDataItems[position].state = IRInputPin.Read();
 
             // Turn off the timeout timer
             RCtimeoutTimer.Change(Timeout.Infinite, Timeout.Infinite);
 
             // Decode the received code
-            IRDecoder.Decode(position);
+            Decode(position);
             
             // Reset the position and wipe out the buffer
             position = 0;
@@ -101,7 +115,7 @@ namespace IRdecoder
         }
 
         // Decode the raw received IR code
-        public static void Decode(int marks)
+        private void Decode(int marks)
         {
             String result;
 
@@ -119,7 +133,7 @@ namespace IRdecoder
         // Decode Panasonic E12-CKP code
         // This does not attempt to verify that the code is correct, but
         // it just decodes whatever it gets
-        private static String DecodePanasonicAircon1(int marks)
+        private String DecodePanasonicAircon1(int marks)
         {
             long duration;
             String result = "";
@@ -173,7 +187,7 @@ namespace IRdecoder
         // Decode Panasonic E12-DKE code
         // This does not attempt to verify that the code is correct, but
         // it just decodes whatever it gets
-        private static String DecodePanasonicAircon2(int marks)
+        private String DecodePanasonicAircon2(int marks)
         {
             long duration;
             String result = "";
@@ -225,7 +239,7 @@ namespace IRdecoder
         }
 
         // Match the mark or space against the actual duration, 20% difference is OK
-        private static Boolean MatchInterval(long interval, long markduration)
+        private Boolean MatchInterval(long interval, long markduration)
         {
             if ((interval < markduration * 0.8) || (interval > markduration * 1.2))
             {

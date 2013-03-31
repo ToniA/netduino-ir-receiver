@@ -6,7 +6,7 @@ using Microsoft.SPOT;
 using Microsoft.SPOT.Hardware;
 using SecretLabs.NETMF.Hardware;
 using SecretLabs.NETMF.Hardware.NetduinoPlus;
-using IRdecoder;
+using IRDecoder;
 
 // Program to receive IR codes from an IR receiver module
 // Decodes two Panasonic air conditioning infrared protocols
@@ -20,25 +20,15 @@ using IRdecoder;
 // The code is based heavily on this example from 'phil': 
 // http://forums.netduino.com/index.php?/topic/185-rc6-decoder-class/
 
-namespace IRreceiver
+namespace IRdemo
 {
     public class Program
     {
-        // Declare an interrupt port to act on both edges of the input
-        public static InterruptPort IRinputPin = new InterruptPort(Pins.GPIO_PIN_D7, false, Port.ResistorMode.Disabled, Port.InterruptMode.InterruptEdgeBoth);
-
         public static void Main()
         {
-            Watchdog.Enabled = false;
-
-            // Declare the interrupt event handler
-            IRinputPin.OnInterrupt += new NativeEventHandler(IRDecoder.RecordPulse);
-
-            // Set the IR decoder's input pin
-            IRDecoder.RemoteInputPin = IRinputPin;
-
-            // Event handler which fires when a code is received
-            IRDecoder.CodeReceivedHandler += new CodeReceivedEventHandler(IRCodeReceived);
+            // Create an instance of the IR decoder
+            // listens on pin D7 and calls IRCodeReceived with the decoded message
+            IRDecoder.IRDecoder IR = new IRDecoder.IRDecoder(Pins.GPIO_PIN_D7, IRCodeReceived);
 
             // Main thread just sleeps, everything is handled in events
             Thread.Sleep(Timeout.Infinite);
