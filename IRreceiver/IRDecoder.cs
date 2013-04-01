@@ -27,7 +27,7 @@ namespace IRDecoder
         private InterruptPort IRInputPin;
 
         // event handler delegate
-        public delegate void CodeReceivedEventHandler(String data);
+        public delegate void CodeReceivedEventHandler(String protocol, String data);
         
         // Event handler to call when a code is received
         private event CodeReceivedEventHandler CodeReceivedHandler;
@@ -118,15 +118,25 @@ namespace IRDecoder
         private void Decode(int marks)
         {
             String result;
+            String protocol;
 
-            if ((result = DecodePanasonicAircon1(marks)) == null)
+            if ((result = DecodePanasonicAircon1(marks)) != null)
             {
-                result = DecodePanasonicAircon2(marks);
+                protocol = "Panasonic CKP";
+            }
+            else if ((result = DecodePanasonicAircon2(marks)) != null)
+            {
+                protocol = "Panasonic DKE";
+            }
+            else
+            {
+                protocol = "Unknown, length " + marks;
+                result = DumpUnknownProtocol(marks);
             }
 
             if ((CodeReceivedHandler != null) && (result != null))
             {
-                CodeReceivedHandler(result);
+                CodeReceivedHandler(protocol, result);
             }
         }
 
@@ -140,8 +150,6 @@ namespace IRDecoder
 
             if ((marks != 202) && (marks != 272))
                 return null;
-
-            Debug.Print("Decoding Panasonic E12-CKP message, " + marks + " marks");
 
             for (int j = 1; j < marks; j++)
             {
@@ -167,7 +175,7 @@ namespace IRDecoder
                     }
                     else 
                     {
-                        Debug.Print("UNKNOWN SPACE at " + j + " duration " + duration);
+                        //Debug.Print("UNKNOWN SPACE at " + j + " duration " + duration);
                         return null;
                     }
                 }
@@ -175,7 +183,7 @@ namespace IRDecoder
                 {
                     if (! (MatchInterval(duration, PANASONIC_AIRCON1_HDR_MARK) || MatchInterval(duration, PANASONIC_AIRCON1_BIT_MARK)))
                     {
-                        Debug.Print("UNKNOWN MARK at " + j + " duration " + duration);
+                        //Debug.Print("UNKNOWN MARK at " + j + " duration " + duration);
                         return null;
                     }
                 }
@@ -194,8 +202,6 @@ namespace IRDecoder
 
             if ((marks != 264) && (marks != 440))
                 return null;
-
-            Debug.Print("Decoding Panasonic E12-DKE message, " + marks + " marks");
 
             for (int j = 1; j < marks; j++)
             {
@@ -221,7 +227,7 @@ namespace IRDecoder
                     }
                     else
                     {
-                        Debug.Print("UNKNOWN SPACE at " + j + " duration " + duration);
+                        //Debug.Print("UNKNOWN SPACE at " + j + " duration " + duration);
                         return null;
                     }
                 }
@@ -229,10 +235,35 @@ namespace IRDecoder
                 {
                     if (! (MatchInterval(duration, PANASONIC_AIRCON2_HDR_MARK) || MatchInterval(duration, PANASONIC_AIRCON2_BIT_MARK)))
                     {
-                        Debug.Print("UNKNOWN MARK at " + j + " duration " + duration);
+                        //Debug.Print("UNKNOWN MARK at " + j + " duration " + duration);
                         return null;
                     }
                 }
+            }
+
+            return result;
+        }
+
+        // Dump unknown protocol as duration of marks and spaces
+        private String DumpUnknownProtocol(int marks)
+        {
+            long duration;
+            String result = "";
+
+            for (int j = 1; j < marks; j++)
+            {
+                duration = IRDataItems[j].timestamp - IRDataItems[j - 1].timestamp;
+
+                if (IRDataItems[j].state == false)
+                {
+                    result += "s";
+                }
+                else
+                {
+                    result += "m";
+                }
+
+                result += duration.ToString() + " ";
             }
 
             return result;

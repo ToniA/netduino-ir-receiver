@@ -35,9 +35,9 @@ namespace IRdemo
         }
 
         // Event handler for the code received event
-        static void IRCodeReceived(String data)
+        static void IRCodeReceived(String protocol, String data)
         {
-            Debug.Print("Received code:\n" + data);
+            Debug.Print("Received code: " + protocol + "\n" + data);
         }
     }
 }
