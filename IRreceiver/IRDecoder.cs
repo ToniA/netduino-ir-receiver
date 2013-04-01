@@ -49,7 +49,7 @@ namespace IRDecoder
         private IRDataItem[] IRDataItems = new IRDataItem[512];
 
 
-        // Panasonic E12-CKP protocol
+        // Panasonic E12-CKP protocol, remote control P/N A75C2295
         private const int PANASONIC_AIRCON1_HDR_MARK   = 3400;
         private const int PANASONIC_AIRCON1_HDR_SPACE  = 3500;
         private const int PANASONIC_AIRCON1_BIT_MARK   = 800;
@@ -59,7 +59,7 @@ namespace IRDecoder
         private const int PANASONIC_AIRCON1_SHORT_MSG  = 202;  
         private const int PANASONIC_AIRCON1_LONG_MSG   = 272;
 
-        // Panasonic E12-DKE protocol
+        // Panasonic E12-DKE protocol, remote control P/N A75C2616
         private const int PANASONIC_AIRCON2_HDR_MARK   = 3400;
         private const int PANASONIC_AIRCON2_HDR_SPACE  = 1750;
         private const int PANASONIC_AIRCON2_BIT_MARK   = 500;
@@ -68,6 +68,15 @@ namespace IRDecoder
         private const int PANASONIC_AIRCON2_MSG_SPACE  = 10000;
         private const int PANASONIC_AIRCON2_SHORT_MSG  = 264;
         private const int PANASONIC_AIRCON2_LONG_MSG   = 440;
+
+        // Fujitsu Nocria protocol, remote control P/N AR-PZ2
+        private const int FUJITSU_AIRCON1_HDR_MARK = 3350;
+        private const int FUJITSU_AIRCON1_HDR_SPACE = 1550;
+        private const int FUJITSU_AIRCON1_BIT_MARK = 450;
+        private const int FUJITSU_AIRCON1_ONE_SPACE = 1150;
+        private const int FUJITSU_AIRCON1_ZERO_SPACE = 350;
+        private const int FUJITSU_AIRCON1_SHORT_MSG = 116;
+        private const int FUJITSU_AIRCON1_LONG_MSG = 260;
 
 
         // Pulse recorder, record the pulse timestamp and state
@@ -128,6 +137,10 @@ namespace IRDecoder
             {
                 protocol = "Panasonic DKE";
             }
+            else if ((result = DecodeFujitsuAircon1(marks)) != null)
+            {
+                protocol = "Fujitsu AWYZ";
+            }
             else
             {
                 protocol = "Unknown, length " + marks;
@@ -148,7 +161,7 @@ namespace IRDecoder
             long duration;
             String result = "";
 
-            if ((marks != 202) && (marks != 272))
+            if ((marks != PANASONIC_AIRCON1_SHORT_MSG) && (marks != PANASONIC_AIRCON1_LONG_MSG))
                 return null;
 
             for (int j = 1; j < marks; j++)
@@ -200,7 +213,7 @@ namespace IRDecoder
             long duration;
             String result = "";
 
-            if ((marks != 264) && (marks != 440))
+            if ((marks != PANASONIC_AIRCON2_SHORT_MSG) && (marks != PANASONIC_AIRCON2_LONG_MSG))
                 return null;
 
             for (int j = 1; j < marks; j++)
@@ -234,6 +247,54 @@ namespace IRDecoder
                 else
                 {
                     if (! (MatchInterval(duration, PANASONIC_AIRCON2_HDR_MARK) || MatchInterval(duration, PANASONIC_AIRCON2_BIT_MARK)))
+                    {
+                        //Debug.Print("UNKNOWN MARK at " + j + " duration " + duration);
+                        return null;
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        // Decode Fujitsu AWYZ14 code
+        // This does not attempt to verify that the code is correct, but
+        // it just decodes whatever it gets
+        private String DecodeFujitsuAircon1(int marks)
+        {
+            long duration;
+            String result = "";
+
+            if ((marks != FUJITSU_AIRCON1_SHORT_MSG) && (marks != FUJITSU_AIRCON1_LONG_MSG))
+                return null;
+
+            for (int j = 1; j < marks; j++)
+            {
+                duration = IRDataItems[j].timestamp - IRDataItems[j - 1].timestamp;
+
+                if (IRDataItems[j].state == false)
+                {
+                    if (MatchInterval(duration, FUJITSU_AIRCON1_HDR_SPACE))
+                    {
+                        result += "H";
+                    }
+                    else if (MatchInterval(duration, FUJITSU_AIRCON1_ONE_SPACE))
+                    {
+                        result += "1";
+                    }
+                    else if (MatchInterval(duration, FUJITSU_AIRCON1_ZERO_SPACE))
+                    {
+                        result += "0";
+                    }
+                    else
+                    {
+                        //Debug.Print("UNKNOWN SPACE at " + j + " duration " + duration);
+                        return null;
+                    }
+                }
+                else
+                {
+                    if (!(MatchInterval(duration, FUJITSU_AIRCON1_HDR_MARK) || MatchInterval(duration, FUJITSU_AIRCON1_BIT_MARK)))
                     {
                         //Debug.Print("UNKNOWN MARK at " + j + " duration " + duration);
                         return null;
