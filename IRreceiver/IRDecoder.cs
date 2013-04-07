@@ -27,7 +27,7 @@ namespace IRDecoder
         private InterruptPort IRInputPin;
 
         // event handler delegate
-        public delegate void CodeReceivedEventHandler(String protocol, String data);
+        public delegate void CodeReceivedEventHandler(String protocol, String data, byte[] bytes);
         
         // Event handler to call when a code is received
         private event CodeReceivedEventHandler CodeReceivedHandler;
@@ -52,9 +52,9 @@ namespace IRDecoder
         // Panasonic E12-CKP protocol, remote control P/N A75C2295
         private const int PANASONIC_AIRCON1_HDR_MARK   = 3400;
         private const int PANASONIC_AIRCON1_HDR_SPACE  = 3500;
-        private const int PANASONIC_AIRCON1_BIT_MARK   = 800;
+        private const int PANASONIC_AIRCON1_BIT_MARK   = 850;
         private const int PANASONIC_AIRCON1_ONE_SPACE  = 2700;
-        private const int PANASONIC_AIRCON1_ZERO_SPACE = 1000;
+        private const int PANASONIC_AIRCON1_ZERO_SPACE = 950;
         private const int PANASONIC_AIRCON1_MSG_SPACE  = 14000;
         private const int PANASONIC_AIRCON1_SHORT_MSG  = 202;  
         private const int PANASONIC_AIRCON1_LONG_MSG   = 272;
@@ -126,30 +126,42 @@ namespace IRDecoder
         // Decode the raw received IR code
         private void Decode(int marks)
         {
-            String result;
+            String bitString;
+            byte[] bytes;
             String protocol;
 
-            if ((result = DecodePanasonicAircon1(marks)) != null)
+            if ((bitString = DecodePanasonicAircon1(marks)) != null)
             {
                 protocol = "Panasonic CKP";
             }
-            else if ((result = DecodePanasonicAircon2(marks)) != null)
+            else if ((bitString = DecodePanasonicAircon2(marks)) != null)
             {
                 protocol = "Panasonic DKE";
             }
-            else if ((result = DecodeFujitsuAircon1(marks)) != null)
+            else if ((bitString = DecodeFujitsuAircon1(marks)) != null)
             {
                 protocol = "Fujitsu AWYZ";
             }
             else
             {
                 protocol = "Unknown, length " + marks;
-                result = DumpUnknownProtocol(marks);
+                bitString = DumpUnknownProtocol(marks);
             }
 
-            if ((CodeReceivedHandler != null) && (result != null))
+            // Decode bits of known protocols to a byte array
+            if (protocol.Substring(0, "Unknown".Length) != "Unknown")
             {
-                CodeReceivedHandler(protocol, result);
+                bytes = BitstringToBytes(bitString);
+            }
+            else
+            {
+                bytes = null;
+            }
+
+            // Call the CodeReceivedHandler if defined and we managed to extract something
+            if ((CodeReceivedHandler != null) && (bitString != null))
+            {
+                CodeReceivedHandler(protocol, bitString, bytes);
             }
         }
 
@@ -188,7 +200,7 @@ namespace IRDecoder
                     }
                     else 
                     {
-                        //Debug.Print("UNKNOWN SPACE at " + j + " duration " + duration);
+                        Debug.Print("UNKNOWN SPACE at " + j + " duration " + duration);
                         return null;
                     }
                 }
@@ -196,7 +208,7 @@ namespace IRDecoder
                 {
                     if (! (MatchInterval(duration, PANASONIC_AIRCON1_HDR_MARK) || MatchInterval(duration, PANASONIC_AIRCON1_BIT_MARK)))
                     {
-                        //Debug.Print("UNKNOWN MARK at " + j + " duration " + duration);
+                        Debug.Print("UNKNOWN MARK at " + j + " duration " + duration);
                         return null;
                     }
                 }
@@ -339,6 +351,44 @@ namespace IRDecoder
             }
 
             return true;
+        }
+
+        // String of bits to a byte array
+        private byte[] BitstringToBytes(String bitString)
+        {
+            int bits;
+            int bitpos = 0;
+            int bytepos = 0;
+            byte[] bytes;
+
+            // Calculate the number of bits in the string
+            bits = (bitString.Split('0').Length - 1) + (bitString.Split('1').Length - 1);
+
+            // .. and the amount of space needed in bytes
+            bytes = new byte[(int)System.Math.Ceiling(bits / 8)];
+
+            // Extract the bytes from the bits string
+            for (int i = 0; i < bitString.Length; i++)
+            {
+                if (bitString[i] == '0')
+                {
+                    bitpos++;
+                }
+                else if (bitString[i] == '1')
+                {
+                    bytes[bytepos] += (byte)(1 << bitpos);
+                    bitpos++;
+                }
+
+                // bit position 8 -> jump to next byte and position 0
+                if (bitpos >= 8)
+                {
+                    bitpos = 0;
+                    bytepos++;
+                }
+            }
+
+            return bytes;
         }
     }
 }
