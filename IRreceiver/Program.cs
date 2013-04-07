@@ -167,9 +167,9 @@ namespace IRdemo
                 String SwingV;
                 String SwingH;
 
-                // Operation mode, low bits of byte 4
+                // Operation mode, low bits of byte 3
 
-                switch (bytes[3] & 0x07)
+                switch (bytes[2] & 0x07)
                 {
                     case 0x06:
                         Mode = "AUTO";
@@ -188,7 +188,7 @@ namespace IRdemo
                         break;
                 }
 
-                if ((bytes[3] & 0x08) != 0x08)
+                if ((bytes[2] & 0x08) != 0x08)
                 {
                     Mode += " ON/OFF";
                 }
@@ -232,10 +232,10 @@ namespace IRdemo
 
                 switch (bytes[8] & 0x0F)
                 {
-                    case 0x0C:
+                    case 0x08:
                         SwingH = "AUTO";
                         break;
-                    case 0x04:
+                    case 0x00:
                         SwingH = "MANUAL";
                         break;
                     default:
