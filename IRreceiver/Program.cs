@@ -56,10 +56,23 @@ namespace IRdemo
 
                 Debug.Print("bytes decoded:\n" + bytestring);
 
-                // Panasonic DKE checksum
-                // 0xF4 plus all bytes but the last == last byte
                 if (protocol == "Panasonic DKE")
                 {
+                    PrintPanasonicDKE(bytes);
+
+                    if (CheckDKEHeader(bytes))
+                    {
+                        Debug.Print("Panasonic DKE header OK");
+                    }
+                    else
+                    {
+                        Debug.Print("Panasonic DKE header FAILS");
+
+                    }
+
+                    // Panasonic DKE checksum
+                    // 0xF4 plus all bytes but the last == last byte
+
                     byte checksum = 0xF4;
                     for (int i = 0; i < (bytes.Length - 1); i++)
                     {
@@ -260,14 +273,166 @@ namespace IRdemo
             }
         }
 
+        private static void PrintPanasonicDKE(byte[] bytes)
+        {
+            // Short message is about setting
+            // * QUIET
+            // * POWERFUL
+
+            if (bytes.Length == 16)
+            {
+                if ((bytes[13] == 0x86) && (bytes[14] == 0x35))
+                {
+                    Debug.Print("POWERFUL ON/OFF");
+                }
+                else if ((bytes[13] == 0x81) && (bytes[14] == 0x33))
+                {
+                    Debug.Print("QUIET ON/OFF");
+                }
+            }
+
+            // Everything else is a long message
+            // Timer messages not yet covered
+            else if (bytes.Length == 27)
+            {
+                String Mode = "Unknown";
+                String Fan = "AUTO";
+                String SwingV;
+                String SwingH;
+
+                // Operation mode, high bits of byte 13
+
+                switch (bytes[13] & 0xF0)
+                {
+                    case 0x00:
+                        Mode = "AUTO";
+                        break;
+                    case 0x40:
+                        Mode = "HEAT";
+                        break;
+                    case 0x30:
+                        Mode = "COOL";
+                        break;
+                    case 0x20:
+                        Mode = "DRY";
+                        break;
+                    case 0x60:
+                        Mode = "FAN";
+                        break;
+                }
+
+                // ON/OFF, low bits of byte 13
+
+                switch (bytes[13] & 0x01)
+                {
+                    case 0x00:
+                        Mode += " OFF";
+                        break;
+                    case 0x01:
+                        Mode += " ON";
+                        break;
+                }
+
+                // ION, low bits of byte 22
+
+                switch (bytes[22] & 0x01)
+                {
+                    case 0x00:
+                        Mode += "";
+                        break;
+                    case 0x01:
+                        Mode += " ION";
+                        break;
+                }
+
+                // Fan speed, high bits of byte 16
+
+                int fan = bytes[16] & 0xF0;
+                if (fan != 0xA0)
+                {
+                    Fan = ((fan >> 4) - 2).ToString();
+                }
+
+                // Vertical swing, low bits of byte 16
+
+                switch (bytes[16] & 0X0F)
+                {
+                    case 0x0F:
+                        SwingV = "AUTO";
+                        break;
+                    case 0x05:
+                        SwingV = "FULL DOWN";
+                        break;
+                    case 0x04:
+                        SwingV = "MIDDLE DOWN";
+                        break;
+                    case 0x03:
+                        SwingV = "MIDDLE";
+                        break;
+                    case 0x02:
+                        SwingV = "MIDDLE UP";
+                        break;
+                    case 0x01:
+                        SwingV = "FULL UP";
+                        break;
+                    default:
+                        SwingV = "Unknown";
+                        break;
+                }
+
+                // Horizontal swing, low bits of byte 17
+
+                switch (bytes[17] & 0x0F)
+                {
+                    case 0x06:
+                        SwingH = "MIDDLE";
+                        break;
+                    case 0x09:
+                        SwingH = "LEFT";
+                        break;
+                    case 0x0A:
+                        SwingH = "LEFT MIDDLE";
+                        break;
+                    case 0x0B:
+                        SwingH = "RIGHT MIDDLE";
+                        break;
+                    case 0x0C:
+                        SwingH = "RIGHT";
+                        break;
+                    case 0x0D:
+                        SwingH = "AUTO";
+                        break;
+                    default:
+                        SwingH = "Unknown";
+                        break;
+                }
+
+                // Print the state
+
+                Debug.Print("MODE   " + Mode);
+                Debug.Print("FAN    " + Fan);
+                if ((bytes[13] & 0xF0) != 0x60)
+                {
+                    Debug.Print("TEMP   " + ((int)(bytes[14]) / 2));
+                }
+                Debug.Print("SWINGV " + SwingV);
+                Debug.Print("SWINGH " + SwingH);
+            }
+            else
+            {
+                Debug.Print("protocol error");
+            }
+        }
+
+
         // Check for repeated patterns in the byte array
-        static Boolean CheckRepeated(byte[] byteArray, int startingPosition, int offset, int repeats)
+        static Boolean CheckRepeated(byte[] bytes, int startingPosition, int offset, int repeats)
         {
             for (int i = 0; i < repeats; i++)
             {
                 for (int j = startingPosition; j < offset; j++)
                 {
-                    if (byteArray[j] != byteArray[j + i * offset])
+                    if (bytes[j] != bytes[j + i * offset])
                     {
                         return false;
                     }
@@ -278,14 +443,47 @@ namespace IRdemo
         }
 
         // Check for repeated pairs in the byte array
-        static Boolean CheckRepeatedPairs(byte[] byteArray)
+        static Boolean CheckRepeatedPairs(byte[] bytes)
         {
-            for (int i = 0; i < byteArray.Length; i += 2)
+            for (int i = 0; i < bytes.Length; i += 2)
             {
-                if (byteArray[i] != byteArray[i + 1])
+                if (bytes[i] != bytes[i + 1])
                 {
                     return false;
                 }
+            }
+
+            return true;
+        }
+
+        // Check for DKE header
+        static Boolean CheckDKEHeader(byte[] bytes)
+        {
+            if ((bytes[0] != 0x02 ||
+                 bytes[1] != 0x20 ||
+                 bytes[2] != 0xE0 ||
+                 bytes[3] != 0x04 ||
+                 bytes[4] != 0x00 ||
+                 bytes[5] != 0x00 ||
+                 bytes[6] != 0x00 ||
+                 bytes[7] != 0x06 ||
+                 bytes[8] != 0x02 ||
+                 bytes[9] != 0x20 ||
+                 bytes[10] != 0xE0 ||
+                 bytes[11] != 0x04) &&
+               (bytes.Length == 16 &&
+                (bytes[12] != 0x80)) &&
+               (bytes.Length == 27 &&
+                (bytes[18] != 0x00 ||
+                 bytes[19] != 0x0E ||
+                 bytes[20] != 0xE0 ||
+                 bytes[21] != 0x00 ||
+                 bytes[23] != 0x01 ||
+                 bytes[24] != 0x00 ||
+                 bytes[25] != 0x06)
+               ))
+            {
+                return false;
             }
 
             return true;
