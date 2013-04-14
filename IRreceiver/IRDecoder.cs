@@ -58,6 +58,7 @@ namespace IRDecoder
         private const int PANASONIC_AIRCON1_MSG_SPACE  = 14000;
         private const int PANASONIC_AIRCON1_SHORT_MSG  = 202;  
         private const int PANASONIC_AIRCON1_LONG_MSG   = 272;
+        private const int PANASONIC_AIRCON1_TIMER_MSG  = 420;
 
         // Panasonic E12-DKE protocol, remote control P/N A75C2616
         private const int PANASONIC_AIRCON2_HDR_MARK   = 3400;
@@ -173,7 +174,9 @@ namespace IRDecoder
             long duration;
             String result = "";
 
-            if ((marks != PANASONIC_AIRCON1_SHORT_MSG) && (marks != PANASONIC_AIRCON1_LONG_MSG))
+            if ((marks != PANASONIC_AIRCON1_SHORT_MSG) && 
+                (marks != PANASONIC_AIRCON1_LONG_MSG) &&
+                (marks != PANASONIC_AIRCON1_TIMER_MSG))
                 return null;
 
             for (int j = 1; j < marks; j++)

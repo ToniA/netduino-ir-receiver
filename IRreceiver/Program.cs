@@ -167,8 +167,28 @@ namespace IRdemo
                 }
             }
 
+            // Timer message
+            else if ((bytes.Length == 24) &&
+                      CheckRepeatedPairs(bytes) &&
+                      bytes[22] == 0x34)
+            {
+                if (bytes[0] == 0x7F)
+                {
+                    Debug.Print("Timer CANCEL message");
+                }
+                else
+                {
+                    Debug.Print("Timer SET message");
+
+                    Debug.Print("ON:  " + (bytes[12] - 0x80).ToString("X2") + ":" + bytes[8].ToString("X2"));
+                    Debug.Print("OFF: " + (bytes[4]  - 0x80).ToString("X2") + ":" + bytes[0].ToString("X2"));
+                }
+
+                Debug.Print("NOW: " +     (bytes[20] - 0x80).ToString("X2") + ":" + bytes[16].ToString("X2"));
+            }
+
+
             // Everything else is a long message
-            // Timer messages not yet covered
             else if ((bytes.Length == 16) &&
                         CheckRepeated(bytes, 0, 4, 2) &&
                         CheckRepeated(bytes, 8, 4, 2) &&
@@ -275,6 +295,10 @@ namespace IRdemo
 
         private static void PrintPanasonicDKE(byte[] bytes)
         {
+            int timestamp;
+            int hours;
+            int minutes;
+            
             // Short message is about setting
             // * QUIET
             // * POWERFUL
@@ -321,7 +345,7 @@ namespace IRdemo
                         break;
                 }
 
-                // ON/OFF, low bits of byte 13
+                // ON/OFF, low bit of byte 13
 
                 switch (bytes[13] & 0x01)
                 {
@@ -330,6 +354,9 @@ namespace IRdemo
                         break;
                     case 0x01:
                         Mode += " ON";
+                        break;
+                    case 0x0F:
+                        Mode += " TIMER ON";
                         break;
                 }
 
@@ -417,6 +444,45 @@ namespace IRdemo
                 }
                 Debug.Print("SWINGV " + SwingV);
                 Debug.Print("SWINGH " + SwingH);
+
+
+                // Timer OFF
+
+                if (((bytes[13] & 0x0F) != 0x0F) && bytes[19] != 0xE0 && bytes[20] != 0xE0)
+                {
+                    Debug.Print("Timer CANCEL message");
+                }
+
+                // Timer ON
+
+                if ((bytes[13] & 0x0F) == 0x0F)
+                {
+                    Debug.Print("Timer SET message");
+
+                    // Time ON
+
+                    timestamp = bytes[18] + (int)(bytes[19] & 0x07) * 0x100;
+                    hours = (int)System.Math.Floor(timestamp / 60);
+                    minutes = timestamp - hours * 60;
+
+                    Debug.Print("ON:  " + hours + ":" + minutes);
+
+                    // Time OFF
+
+                    timestamp = (bytes[19] & 0xF0) / 0x10 + (bytes[20] & 0x0F) * 0x10 + (int)(bytes[20] & 0x70) * 0x10;
+                    hours = (int)System.Math.Floor(timestamp / 60);
+                    minutes = timestamp - hours * 60;
+
+                    Debug.Print("OFF: " + hours + ":" + minutes);
+
+                    // Time now
+
+                    timestamp = bytes[24] + (int)bytes[25] * 0x100;
+                    hours = (int)System.Math.Floor(timestamp / 60);
+                    minutes = timestamp - hours * 60;
+
+                    Debug.Print("NOW: " + hours + ":" + minutes);
+                }
             }
             else
             {
