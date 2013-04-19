@@ -172,7 +172,7 @@ namespace IRdemo
                       CheckRepeatedPairs(bytes) &&
                       bytes[22] == 0x34)
             {
-                if (bytes[0] == 0x7F)
+                if (bytes[0] == 0x7F && bytes[8] == 0x7F)
                 {
                     Debug.Print("Timer CANCEL message");
                 }
@@ -180,8 +180,23 @@ namespace IRdemo
                 {
                     Debug.Print("Timer SET message");
 
-                    Debug.Print("ON:  " + (bytes[12] - 0x80).ToString("X2") + ":" + bytes[8].ToString("X2"));
-                    Debug.Print("OFF: " + (bytes[4]  - 0x80).ToString("X2") + ":" + bytes[0].ToString("X2"));
+                    if (bytes[8] == 0x7F)
+                    {
+                        Debug.Print("ON: <not set>");
+                    }
+                    else
+                    {
+                        Debug.Print("ON:  " + (bytes[12] - 0x80).ToString("X2") + ":" + bytes[8].ToString("X2"));
+                    }
+
+                    if (bytes[0] == 0x7F)
+                    {
+                        Debug.Print("OFF: <not set>");
+                    }
+                    else
+                    {
+                        Debug.Print("OFF: " + (bytes[4] - 0x80).ToString("X2") + ":" + bytes[0].ToString("X2"));
+                    }
                 }
 
                 Debug.Print("NOW: " +     (bytes[20] - 0x80).ToString("X2") + ":" + bytes[16].ToString("X2"));
@@ -448,32 +463,46 @@ namespace IRdemo
 
                 // Timer OFF
 
-                if (((bytes[13] & 0x0F) != 0x0F) && bytes[19] != 0xE0 && bytes[20] != 0xE0)
+                if (((bytes[13] & 0x0F) == 0x09) && bytes[19] != 0xE0 && bytes[20] != 0xE0)
                 {
                     Debug.Print("Timer CANCEL message");
                 }
 
                 // Timer ON
 
-                if ((bytes[13] & 0x0F) == 0x0F)
+                if ((bytes[13] & 0x0F) > 0x09)
                 {
                     Debug.Print("Timer SET message");
 
                     // Time ON
 
-                    timestamp = bytes[18] + (int)(bytes[19] & 0x07) * 0x100;
-                    hours = (int)System.Math.Floor(timestamp / 60);
-                    minutes = timestamp - hours * 60;
+                    if ((bytes[13] & 0x0F) != 0x0D)
+                    {
+                        timestamp = bytes[18] + (int)(bytes[19] & 0x07) * 0x100;
+                        hours = (int)System.Math.Floor(timestamp / 60);
+                        minutes = timestamp - hours * 60;
 
-                    Debug.Print("ON:  " + hours + ":" + minutes);
+                        Debug.Print("ON:  " + hours + ":" + minutes);
+                    }
+                    else
+                    {
+                        Debug.Print("ON: <not set>");
+                    }
 
                     // Time OFF
+                    if ((bytes[13] & 0x0F) != 0x0B)
+                    {
 
-                    timestamp = (bytes[19] & 0xF0) / 0x10 + (bytes[20] & 0x0F) * 0x10 + (int)(bytes[20] & 0x70) * 0x10;
-                    hours = (int)System.Math.Floor(timestamp / 60);
-                    minutes = timestamp - hours * 60;
+                        timestamp = (bytes[19] & 0xF0) / 0x10 + (bytes[20] & 0x0F) * 0x10 + (int)(bytes[20] & 0x70) * 0x10;
+                        hours = (int)System.Math.Floor(timestamp / 60);
+                        minutes = timestamp - hours * 60;
 
-                    Debug.Print("OFF: " + hours + ":" + minutes);
+                        Debug.Print("OFF: " + hours + ":" + minutes);
+                    }
+                    else
+                    {
+                        Debug.Print("OFF: <not set>");
+                    }
 
                     // Time now
 
