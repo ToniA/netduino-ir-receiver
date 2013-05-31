@@ -79,6 +79,9 @@ namespace IRDecoder
         private const int FUJITSU_AIRCON1_SHORT_MSG = 116;
         private const int FUJITSU_AIRCON1_LONG_MSG = 260;
 
+        // Marks and spaces tend to have some offset
+
+        private const int MARK_EXCESS = 0;
 
         // Pulse recorder, record the pulse timestamp and state
         // and reset the timeout timer
@@ -185,19 +188,19 @@ namespace IRDecoder
 
                 if (IRDataItems[j].state == false)
                 {
-                    if (MatchInterval(duration, PANASONIC_AIRCON1_HDR_SPACE))
+                    if (MatchInterval(duration, PANASONIC_AIRCON1_HDR_SPACE, false))
                     {
                         result += "H";
                     }
-                    else if (MatchInterval(duration, PANASONIC_AIRCON1_ONE_SPACE))
+                    else if (MatchInterval(duration, PANASONIC_AIRCON1_ONE_SPACE, false))
                     {
                         result += "1";
                     }
-                    else if (MatchInterval(duration, PANASONIC_AIRCON1_ZERO_SPACE))
+                    else if (MatchInterval(duration, PANASONIC_AIRCON1_ZERO_SPACE, false))
                     {
                         result += "0";
                     }
-                    else if (MatchInterval(duration, PANASONIC_AIRCON1_MSG_SPACE))
+                    else if (MatchInterval(duration, PANASONIC_AIRCON1_MSG_SPACE, false))
                     {
                         result += "W";
                     }
@@ -209,7 +212,7 @@ namespace IRDecoder
                 }
                 else
                 {
-                    if (! (MatchInterval(duration, PANASONIC_AIRCON1_HDR_MARK) || MatchInterval(duration, PANASONIC_AIRCON1_BIT_MARK)))
+                    if (! (MatchInterval(duration, PANASONIC_AIRCON1_HDR_MARK, true) || MatchInterval(duration, PANASONIC_AIRCON1_BIT_MARK, true)))
                     {
                         Debug.Print("UNKNOWN MARK at " + j + " duration " + duration);
                         return null;
@@ -237,33 +240,33 @@ namespace IRDecoder
 
                 if (IRDataItems[j].state == false)
                 {
-                    if (MatchInterval(duration, PANASONIC_AIRCON2_HDR_SPACE))
+                    if (MatchInterval(duration, PANASONIC_AIRCON2_HDR_SPACE, false))
                     {
                         result += "H";
                     }
-                    else if (MatchInterval(duration, PANASONIC_AIRCON2_ONE_SPACE))
+                    else if (MatchInterval(duration, PANASONIC_AIRCON2_ONE_SPACE, false))
                     {
                         result += "1";
                     }
-                    else if (MatchInterval(duration, PANASONIC_AIRCON2_ZERO_SPACE))
+                    else if (MatchInterval(duration, PANASONIC_AIRCON2_ZERO_SPACE, false))
                     {
                         result += "0";
                     }
-                    else if (MatchInterval(duration, PANASONIC_AIRCON2_MSG_SPACE))
+                    else if (MatchInterval(duration, PANASONIC_AIRCON2_MSG_SPACE, false))
                     {
                         result += "W";
                     }
                     else
                     {
-                        //Debug.Print("UNKNOWN SPACE at " + j + " duration " + duration);
+                        Debug.Print("UNKNOWN SPACE at " + j + " duration " + duration);
                         return null;
                     }
                 }
                 else
                 {
-                    if (! (MatchInterval(duration, PANASONIC_AIRCON2_HDR_MARK) || MatchInterval(duration, PANASONIC_AIRCON2_BIT_MARK)))
+                    if (! (MatchInterval(duration, PANASONIC_AIRCON2_HDR_MARK, true) || MatchInterval(duration, PANASONIC_AIRCON2_BIT_MARK, true)))
                     {
-                        //Debug.Print("UNKNOWN MARK at " + j + " duration " + duration);
+                        Debug.Print("UNKNOWN MARK at " + j + " duration " + duration);
                         return null;
                     }
                 }
@@ -289,15 +292,15 @@ namespace IRDecoder
 
                 if (IRDataItems[j].state == false)
                 {
-                    if (MatchInterval(duration, FUJITSU_AIRCON1_HDR_SPACE))
+                    if (MatchInterval(duration, FUJITSU_AIRCON1_HDR_SPACE, false))
                     {
                         result += "H";
                     }
-                    else if (MatchInterval(duration, FUJITSU_AIRCON1_ONE_SPACE))
+                    else if (MatchInterval(duration, FUJITSU_AIRCON1_ONE_SPACE, false))
                     {
                         result += "1";
                     }
-                    else if (MatchInterval(duration, FUJITSU_AIRCON1_ZERO_SPACE))
+                    else if (MatchInterval(duration, FUJITSU_AIRCON1_ZERO_SPACE, false))
                     {
                         result += "0";
                     }
@@ -309,7 +312,7 @@ namespace IRDecoder
                 }
                 else
                 {
-                    if (!(MatchInterval(duration, FUJITSU_AIRCON1_HDR_MARK) || MatchInterval(duration, FUJITSU_AIRCON1_BIT_MARK)))
+                    if (!(MatchInterval(duration, FUJITSU_AIRCON1_HDR_MARK, true) || MatchInterval(duration, FUJITSU_AIRCON1_BIT_MARK, true)))
                     {
                         //Debug.Print("UNKNOWN MARK at " + j + " duration " + duration);
                         return null;
@@ -346,8 +349,17 @@ namespace IRDecoder
         }
 
         // Match the mark or space against the actual duration, 20% difference is OK
-        private Boolean MatchInterval(long interval, long markduration)
+        private Boolean MatchInterval(long interval, long markduration, Boolean markType)
         {
+            if (markType == true)
+            {
+                interval += MARK_EXCESS;
+            } 
+            else 
+            {
+                interval -= MARK_EXCESS;
+            }
+
             if ((interval < markduration * 0.8) || (interval > markduration * 1.2))
             {
                 return false;

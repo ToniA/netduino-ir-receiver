@@ -16,3 +16,5 @@ Tested with IR receiver module A742724, taken from Panasonic E12-CKP indoor unit
 
 The code is based heavily on this example from 'phil': 
 http://forums.netduino.com/index.php?/topic/185-rc6-decoder-class/
+
+![Schema](https://raw.github.com/ToniA/netduino-ir-receiver/master/netduino_bb.png)
