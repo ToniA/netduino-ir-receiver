@@ -7,6 +7,9 @@ Decodes these Panasonic air conditioning infrared protocols:
 * E12-CKP (remote control A75C2295)
 * E12-DKE (remote control A75C2616)
 
+And Midea (sold as Ultimate Pro Plus Basic 13FP in Finland):
+* Midea MSR1-12HRN1-QC2 + MOA1-12HN1-QC2 (remote control P/N RG51M1/E)
+
 And this Fujitsu (just the bytes so far):
 * Nocria AWYZ14 (remote control P/N AR-PZ2)
 
