@@ -71,13 +71,24 @@ namespace IRDecoder
         private const int PANASONIC_AIRCON2_LONG_MSG   = 440;
 
         // Fujitsu Nocria protocol, remote control P/N AR-PZ2
-        private const int FUJITSU_AIRCON1_HDR_MARK = 3350;
-        private const int FUJITSU_AIRCON1_HDR_SPACE = 1550;
-        private const int FUJITSU_AIRCON1_BIT_MARK = 450;
-        private const int FUJITSU_AIRCON1_ONE_SPACE = 1150;
-        private const int FUJITSU_AIRCON1_ZERO_SPACE = 350;
-        private const int FUJITSU_AIRCON1_SHORT_MSG = 116;
-        private const int FUJITSU_AIRCON1_LONG_MSG = 260;
+        private const int FUJITSU_AIRCON1_HDR_MARK     = 3350;
+        private const int FUJITSU_AIRCON1_HDR_SPACE    = 1550;
+        private const int FUJITSU_AIRCON1_BIT_MARK     = 450;
+        private const int FUJITSU_AIRCON1_ONE_SPACE    = 1150;
+        private const int FUJITSU_AIRCON1_ZERO_SPACE   = 350;
+        private const int FUJITSU_AIRCON1_SHORT_MSG    = 116;
+        private const int FUJITSU_AIRCON1_LONG_MSG     = 260;
+
+        // Midea / Ultimate Pro Plus Basic 13 FP protocol, remote control P/N RG51M1/E
+
+        private const int MIDEA_AIRCON1_HDR_MARK       = 4430;
+        private const int MIDEA_AIRCON1_HDR_SPACE      = 4300;
+        private const int MIDEA_AIRCON1_MSG_SPACE      = 5100;
+        private const int MIDEA_AIRCON1_BIT_MARK       = 570;
+        private const int MIDEA_AIRCON1_ONE_SPACE      = 1600;
+        private const int MIDEA_AIRCON1_ZERO_SPACE     = 500;
+        private const int MIDEA_AIRCON1_SHORT_MSG      = 100;
+        private const int MIDEA_AIRCON1_LONG_MSG       = 200;
 
         // Marks and spaces tend to have some offset
 
@@ -145,6 +156,10 @@ namespace IRDecoder
             else if ((bitString = DecodeFujitsuAircon1(marks)) != null)
             {
                 protocol = "Fujitsu AWYZ";
+            }
+            else if ((bitString = DecodeMideaAircon1(marks)) != null)
+            {
+                protocol = "Midea/Ultimate Pro Plus Basic 13FP";
             }
             else
             {
@@ -322,7 +337,59 @@ namespace IRDecoder
 
             return result;
         }
+        
+        // Decode Midea/Ultimate Pro Plus 13FP code
+        // This does not attempt to verify that the code is correct, but
+        // it just decodes whatever it gets
+        private String DecodeMideaAircon1(int marks)
+        {
+            long duration;
+            String result = "";
 
+            if ((marks != MIDEA_AIRCON1_SHORT_MSG) && (marks != MIDEA_AIRCON1_LONG_MSG))
+                return null;
+
+            for (int j = 1; j < marks; j++)
+            {
+                duration = IRDataItems[j].timestamp - IRDataItems[j - 1].timestamp;
+
+                if (IRDataItems[j].state == false)
+                {
+                    if (MatchInterval(duration, MIDEA_AIRCON1_HDR_SPACE, false))
+                    {
+                        result += "H";
+                    }
+                    else if (MatchInterval(duration, MIDEA_AIRCON1_MSG_SPACE, false))
+                    {
+                        result += "W";
+                    }
+                    else if (MatchInterval(duration, MIDEA_AIRCON1_ONE_SPACE, false))
+                    {
+                        result += "1";
+                    }
+                    else if (MatchInterval(duration, MIDEA_AIRCON1_ZERO_SPACE, false))
+                    {
+                        result += "0";
+                    }
+                    else
+                    {
+                        //Debug.Print("UNKNOWN SPACE at " + j + " duration " + duration);
+                        return null;
+                    }
+                }
+                else
+                {
+                    if (!(MatchInterval(duration, MIDEA_AIRCON1_HDR_MARK, true) || MatchInterval(duration, MIDEA_AIRCON1_BIT_MARK, true)))
+                    {
+                        //Debug.Print("UNKNOWN MARK at " + j + " duration " + duration);
+                        return null;
+                    }
+                }
+            }
+
+            return result;
+        }
+        
         // Dump unknown protocol as duration of marks and spaces
         private String DumpUnknownProtocol(int marks)
         {

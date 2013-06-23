@@ -92,6 +92,10 @@ namespace IRdemo
                 {
                     PrintPanasonicCKP(bytes);
                 }
+                else if (protocol == "Midea/Ultimate Pro Plus Basic 13FP")
+                {
+                    PrintMideaUltimate(bytes);
+                }
             }
         }
 
@@ -582,6 +586,167 @@ namespace IRdemo
             }
 
             return true;
+        }
+
+        private static void PrintMideaUltimate(byte[] bytes)
+        {
+            if (bytes[0] == 0xAD && bytes[1] == 0x52 && bytes[2] == 0xAF && bytes[3] == 0x50 && bytes[4] == 0xB5 && bytes[5] == 0x4A)
+            {
+                Debug.Print("FP ON");
+                return;
+            }
+
+            if (bytes[0] == 0xAD && bytes[1] == 0x52 && bytes[2] == 0xAF && bytes[3] == 0x50 && bytes[4] == 0x45 && bytes[5] == 0xBA)
+            {
+                Debug.Print("TURBO ON/OFF");
+                return;
+            }
+
+            if (bytes[0] != 0x4D && bytes[1] != 0xB2)
+            {
+                Debug.Print("protocol error");
+                return;
+            }
+
+            if (bytes[2] == 0xD6 && bytes[3] == 0x29 && bytes[4] == 0x07 && bytes[5] == 0xF8)
+            {
+                Debug.Print("SWING ON/OFF");
+                return;
+            }
+
+            // Short message is about setting
+            // * AIR DIRECTION
+
+            if ((bytes.Length == 6))
+            {
+                if ((bytes[2] == 0xF0) && (bytes[3] == 0x0F) && bytes[4] == 0x07 && bytes[5] == 0xF8)
+                {
+                    Debug.Print("AIR DIRECTION");
+                }
+            }
+
+            // Everything else is a long message
+            else if ((bytes.Length == 12) &&
+                        CheckRepeated(bytes, 0, 6, 2))
+            {
+                String Mode = "Unknown";
+                String Fan = "AUTO";
+                Byte Temperature = 0;
+
+
+                // Operation mode, byte 4
+
+                if (bytes[4] == 0x07)
+                {
+                    Mode = "OFF";
+                }
+                else
+                {
+                    switch (bytes[4] & 0xF0)
+                    {
+                        case 0x10:
+                            Mode = "AUTO";
+                            break;
+                        case 0x30:
+                            Mode = "HEAT";
+                            break;
+                        case 0x00:
+                            Mode = "COOL";
+                            break;
+                        case 0x20: // If temperature is 0x08, it's FAN mode
+                            if ((bytes[5] & 0x0F) == 0x08)
+                            {
+                                Mode = "FAN";
+                            }
+                            else
+                            {
+                                Mode = "DRY";
+                            }
+                            break;
+                    }
+                }
+                // Temperature, low bits of byte 5
+                // In Gray code
+
+                switch (bytes[5] & 0x0F)
+                {
+                    case 0x0F:
+                        Temperature = 17;
+                        break;
+                    case 0x07:
+                        Temperature = 18;
+                        break;
+                    case 0x03:
+                        Temperature = 19;
+                        break;
+                    case 0x0B:
+                        Temperature = 20;
+                        break;
+                    case 0x09:
+                        Temperature = 21;
+                        break;
+                    case 0x01:
+                        Temperature = 22;
+                        break;
+                    case 0x05:
+                        Temperature = 23;
+                        break;
+                    case 0x0D:
+                        Temperature = 24;
+                        break;
+                    case 0x0C:
+                        Temperature = 25;
+                        break;
+                    case 0x04:
+                        Temperature = 26;
+                        break;
+                    case 0x06:
+                        Temperature = 27;
+                        break;
+                    case 0x0E:
+                        Temperature = 28;
+                        break;
+                    case 0x0A:
+                        Temperature = 29;
+                        break;
+                    case 0x02:
+                        Temperature = 30;
+                        break;
+                }
+                            
+                // Fan speed, low 3 bits of byte 2
+
+                switch (bytes[2] & 0x07)
+                {
+                    case 0x05:
+                        Fan = "AUTO";
+                        break;
+                    case 0x04:
+                        Fan = "HIGH";
+                        break;
+                    case 0x02:
+                        Fan = "MED";
+                        break;
+                    case 0x01:
+                        Fan = "LOW";
+                        break;
+                }
+
+                // Print the state
+
+                Debug.Print("MODE   " + Mode);
+                if (Mode != "OFF") {
+                    Debug.Print("FAN    " + Fan);
+                    if (Mode != "FAN")
+                    {
+                        Debug.Print("TEMP   " + Temperature);
+                    }
+                }
+            }
+            else
+            {
+                Debug.Print("protocol error");
+            }
         }
     }
 }
