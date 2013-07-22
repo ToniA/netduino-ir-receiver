@@ -92,6 +92,31 @@ namespace IRdemo
                 {
                     PrintPanasonicCKP(bytes);
                 }
+                if (protocol == "Fujitsu AWYZ")
+                {
+                    PrintFujitsuAWYZ(bytes);
+
+                    // Fujitsu AWYZ checksum
+                    // all bytes but the last + last byte == 0x9E
+
+                    byte checksum = 0x00;
+                    for (int i = 0; i < (bytes.Length - 1); i++)
+                    {
+                        checksum += bytes[i];
+                    }
+
+                    if ( bytes.Length == 16 )
+                    {
+                        if ((byte)(checksum + bytes[bytes.Length - 1]) == 0x9E)
+                        {
+                            Debug.Print("Fujitsu AWYZ checksum OK");
+                        }
+                        else
+                        {
+                            Debug.Print("Fujitsu AWYZ checksum FAILS");
+                        }
+                    }
+                }
                 else if (protocol == "Midea/Ultimate Pro Plus Basic 13FP")
                 {
                     PrintMideaUltimate(bytes);
@@ -586,6 +611,71 @@ namespace IRdemo
             }
 
             return true;
+        }
+
+        private static void PrintFujitsuAWYZ(byte[] bytes)
+        {
+            // Short message is about setting
+            // * POWER OFF
+            // * SWING
+            // * etc...
+
+            if (bytes.Length == 7)
+            {
+                // 14-63-00-10-10-02-FD
+
+                if ((bytes[0] == 0x14) && (bytes[1] == 0x63) && (bytes[2] == 0x00) && (bytes[3] == 0x10) && (bytes[4] == 0x10) && (bytes[5] == 0x02) && (bytes[6] == 0xFD))
+                {
+                    Debug.Print("POWER OFF");
+                }
+            }
+
+            // Everything else is a long message
+            // Timer messages not yet covered
+            else if (bytes.Length == 16)
+            {
+                String Mode = "Unknown";
+                String Fan = "AUTO";
+
+                // Operation mode, low bits of byte 9
+
+                switch (bytes[9] & 0x07)
+                {
+                    case 0x00:
+                        Mode = "AUTO";
+                        break;
+                    case 0x04:
+                        Mode = "HEAT";
+                        break;
+                    case 0x01:
+                        Mode = "COOL";
+                        break;
+                    case 0x02:
+                        Mode = "DRY";
+                        break;
+                    case 0x03:
+                        Mode = "FAN";
+                        break;
+                }
+
+                // Fan speed, low bits of byte 10
+
+                int fan = bytes[10] & 0x0F;
+                if (fan != 0x00)
+                {
+                    Fan = (5 - fan).ToString();
+                }
+
+                // Print the state
+
+                Debug.Print("MODE   " + Mode);
+                Debug.Print("FAN    " + Fan);
+                Debug.Print("TEMP   " + ((int)(bytes[8] >> 4) + 16));
+            }
+            else
+            {
+                Debug.Print("protocol error");
+            }
         }
 
         private static void PrintMideaUltimate(byte[] bytes)
